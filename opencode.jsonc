@@ -1,0 +1,27 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // Paths here resolve from the working directory (the project root), not from this file.
+  // .opencode/skills is also a default discovery location; this entry makes it explicit.
+  "skills": ["./.opencode/skills"],
+  "permissions": [
+    // Token-budget guardrail: the bpmn-diagram skill's reference files are 43,904 tokens
+    // in total. Reading them wholesale defeats the whole design — `scripts/lookup.mjs`
+    // pulls one element section for ~139 tokens instead, and it reads them via the
+    // shell action, which this rule does not touch. So: block the read/glob tools,
+    // leave the sanctioned path working.
+    { "action": "read", "resource": "**/bpmn-diagram/references/**", "effect": "deny" },
+    { "action": "glob", "resource": "**/bpmn-diagram/references/**", "effect": "deny" },
+
+    { "action": "ask_user_question", "resource": "*", "effect": "allow" },
+    { "action": "quiz", "resource": "*", "effect": "allow" },
+    { "action": "write_mermaid", "resource": "*", "effect": "allow" },
+    { "action": "edit_mermaid", "resource": "*", "effect": "allow" },
+    { "action": "render_mermaid", "resource": "*", "effect": "allow" },
+    { "action": "write_svg", "resource": "*", "effect": "allow" },
+    { "action": "edit_svg", "resource": "*", "effect": "allow" },
+    { "action": "render_svg", "resource": "*", "effect": "allow" },
+    { "action": "subagent", "resource": "researcher", "effect": "allow" },
+    { "action": "subagent", "resource": "mermaid-maker", "effect": "allow" },
+    { "action": "subagent", "resource": "svg-maker", "effect": "allow" }
+  ]
+}

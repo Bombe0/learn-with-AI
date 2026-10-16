@@ -1,39 +1,49 @@
 # learn
 
-[![video](assets/thumbnail.png)](https://www.youtube.com/watch?v=kzcI5F4tGiU)
+My AI learning system, ported from [amosblomqvist/learn](https://github.com/amosblomqvist/learn) (originally a [pi](https://github.com/earendil-works/pi) configuration) to OpenCode.
 
-My AI learning system from this video: [How I Use AI to Learn Things](https://www.youtube.com/watch?v=kzcI5F4tGiU).
-
-This is a personal system I built for myself, shared as-is. Built as a pi configuration: the teaching philosophy encoded in a skill, a few small extensions, and agent definitions.
+The teaching philosophy is encoded in a skill, a few small plugins provide the interactive tools, and agent definitions cover the subagents the system delegates to.
 
 ## What's in it
 
-- `skills/teach/` — the philosophy and the process
-- `skills/visualize/` — adds a correct, minimal diagram to a lesson when an idea is clearer as a picture
-- `extensions/ask-user-question/` — the agent asks you questions through a UI popup
-- `extensions/quiz/` — graded questions with instant feedback (✓/✗, correct answer, explanation)
-- `extensions/md-log/` — link a markdown file to the session
-- `extensions/visual-tools/` — tools for visualization subagents
-- `agents/` — `researcher`, `svg-maker`, `mermaid-maker`: the subagents the system delegates to
+- `skills/` — `teach` (the philosophy and the process), `visualize` (adds a correct, minimal diagram to a lesson when an idea is clearer as a picture), `bpmn-diagram` (turns a process description into validated BPMN 2.0 XML)
+- `plugins/learn.quiz.ts` — graded questions with instant feedback (✓/✗, correct answer, explanation)
+- `plugins/learn.ask-user-question.ts` — the agent asks you questions through a popup
+- `plugins/learn.md-log.ts` — link a markdown file to the session (`/md-log <path>`, `/md-unlog`)
+- `plugins/learn.visual-tools.ts` — tools for the visualization subagents
+- `agent/` — `researcher`, `svg-maker`, `mermaid-maker`: the subagents the system delegates to
+- `renderers/` — isolated `npm install` for the two renderers (see Requirements)
+- `learn/shared.ts` — form plumbing shared by `quiz` and `ask_user_question`
+- `opencode.jsonc` — registers the `skills/` source and allows the plugin tools and the three subagents
 
-## Install
-
-This repo **is** a `.pi` directory. From your learning project's root:
-
-```bash
-git clone https://github.com/amosblomqvist/learn .pi
-```
-
-Then open pi in that directory. (Or copy the pieces you want into your existing project config.)
+Everything lives under `.opencode/`; the project root holds only `.opencode/` and `.gitignore`. Generated diagrams land in `viz/` at the root, which is gitignored.
 
 ## Requirements
 
-- [pi](https://github.com/earendil-works/pi)
-- A subagent implementation, so the system can spawn the researcher and the visual makers. Recommended: [pi-interactive-subagents](https://github.com/amosblomqvist/pi-interactive-subagents) (tmux only). With it, everything works out of the box. Any other implementation works too, but expect to adapt the agent definitions, e.g. `agents/researcher.md` lists `safe_bash` in its tools, which is specific to that extension.
-- `ask-user-question` — use the copy bundled here. If your setup already has an `ask-user-question` extension, use **this** one in its place. Popups from different extensions serialize through a shared UI lock, which only works when it's the same implementation.
+- OpenCode v2 (`opencode --version` → 2.x)
+- Chrome installed, for Mermaid rendering (`mmdc` uses it via puppeteer instead of downloading Chromium)
+
+`@opencode/plugin` is a peer of the OpenCode runtime and does not need to be installed here — the plugins import no OpenCode packages, only `node:` builtins.
+
+### Renderers
+
+The visualization tools need two native renderers. They live in their own install under `renderers/`, resolved by the plugin relative to itself, so the learning project itself never carries a `node_modules`:
+
+```bash
+npm install --prefix .opencode/renderers
+```
+
+| Package | Used for |
+| --- | --- |
+| `@mermaid-js/mermaid-cli` | `render_mermaid` |
+| `@resvg/resvg-js` | `render_svg` |
+
+Only needed if you use the `visualize` skill or the maker subagents. `teach`, `quiz`, `ask_user_question` and `md-log` have no dependencies.
 
 ## Notes
 
-You can run the system without subagents. The main session does the teaching. You just lose the researcher (truth verification) and the generated visuals.
-
-The teaching skill is written for one learner (me). Edit the skill to fit how you learn best.
+- `quiz` and `ask_user_question` use OpenCode's session **form** API, which every client renders natively. In a headless `opencode run` (no interactive client attached) the server cancels the form immediately, so the tools report a cancellation rather than hanging — that matches the pi originals, which also refused to run without a TUI.
+- The built-in `question` tool overlaps with `ask_user_question`. Both are kept: `ask_user_question` always offers an "Other" free-text option, which matters when the learner's goal is still half-formed. The `teach` skill uses `ask_user_question` for that reason.
+- Visual tools publish into `<project>/viz`, and the `md-log` plugin mirrors the session into a linked Markdown file, so `![[viz-….png|500]]` embeds resolve by filename in Obsidian.
+- You can run the system without subagents. The main session does the teaching. You just lose the researcher (truth verification) and the generated visuals.
+- The teaching skill is written for one learner (me). Edit the skill to fit how you learn best.
